@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>GCP - Your Dashboard</title>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="css/styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <!-- Header-->
+    <header class="py-5">
+        <div class="container px-lg-5">
+            <div class="p-4 p-lg-5 bg-light rounded-3 text-center">
+                <div class="m-4 m-lg-5">
+                    <h1 class="display-5 fw-bold">A warm welcome!</h1>
+                    <p class="fs-4">Here is your overview!</p>
+                    <button class="btn btn-primary btn-lg" id="signin">Login</button>
+                    <button class="btn btn-primary btn-lg" id="refresh">Refresh</button>
+                    <button class="btn btn-primary btn-lg" id="swap">Swap for €</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- Page Content-->
+    <section class="pt-4">
+        <div class="container px-lg-5">
+            <!-- Page Features-->
+            <div class="row gx-lg-5">
+                <div class="col-lg-6 col-xxl-4 mb-5">
+                    <div class="card bg-light border-0 h-100">
+                        <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
+                            <div class="feature bg-primary bg-gradient text-white rounded-3 mb-4 mt-n4"><i class="bi bi-battery-charging"></i></div>
+                            <h2 class="fs-4 fw-bold">Your current production</h2>
+                            <p class="mb-0">7 KW</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-xxl-4 mb-5">
+                    <div class="card bg-light border-0 h-100">
+                        <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
+                            <div class="feature bg-primary bg-gradient text-white rounded-3 mb-4 mt-n4"><i class="bi bi-cash-stack"></i></div>
+                            <h2 class="fs-4 fw-bold">Your tokens</h2>
+                            <p class="mb-0" id="tokens">---</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-xxl-4 mb-5">
+                    <div class="card bg-light border-0 h-100">
+                        <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
+                            <div class="feature bg-primary bg-gradient text-white rounded-3 mb-4 mt-n4"><i class="bi bi-cash-stack"></i></div>
+                            <h2 class="fs-4 fw-bold">Tokens in EUR</h2>
+                            <p class="mb-0" id="tokensInEur">---</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Bootstrap core JS-->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Core theme JS-->
+    <script src="js/scripts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/near-api-js@0.41.0/dist/near-api-js.min.js"></script>
+    <script>
+        // connect to NEAR
+        const near = new nearApi.Near({
+            keyStore: new nearApi.keyStores.BrowserLocalStorageKeyStore(),
+            networkId: 'testnet',
+            nodeUrl: 'https://rpc.testnet.near.org',
+            walletUrl: 'https://wallet.testnet.near.org'
+        });
+
+        // connect to the NEAR Wallet
+        const wallet = new nearApi.WalletConnection(near, 'gcp-dashboard');
+
+        // connect to a NEAR smart contract
+        const contract = new nearApi.Contract(wallet.account(), 'eu_authority.testnet', {
+            viewMethods: ["get_balance", "get_total_balance"], // view methods do not change state but usually return a value
+            changeMethods: ["send_tokens"], // change methods modify state.
+        });
+
+        const button = document.getElementById('signin');
+        if (!wallet.isSignedIn()) {
+            button.textContent = 'SignIn with NEAR'
+        }
+
+        document.getElementById('refresh').addEventListener('click', () => {
+            aId = wallet.account().accountId
+            if (wallet.isSignedIn()) {
+                res = contract.get_total_balance({
+                    "account": aId
+                }).then((res) => {
+                    let s = 0;
+                    for (const [key, value] of Object.entries(res)) {
+                        s += value.amount
+                    }
+                    console.log(res)
+                    document.getElementById('tokens').innerText = `${s} $GCT`
+                    document.getElementById('tokensInEur').innerText = `${(s/5.5).toFixed(2)}€`
+                })
+            } else {
+                wallet.requestSignIn({
+                    contractId: 'eu_authority.testnet',
+                    methodNames: ["get_balance", "get_total_balance", "send_tokens"]
+                });
+            }
+        });
+
+        document.getElementById('swap').addEventListener('click', () => {
+            aId = wallet.account().accountId
+            if (wallet.isSignedIn()) {
+                res = contract.get_total_balance({
+                    "account": aId
+                }).then((res) => {
+                    let s = 0;
+                    for (const [key, value] of Object.entries(res)) {
+                        s += value.amount
+                    }
+                    console.log(res)
+                    document.getElementById('tokens').innerText = `${s} $GCT`
+                    document.getElementById('tokensInEur').innerText = `${(s/5.5).toFixed(2)}€`
+                })
+            } else {
+                wallet.requestSignIn({
+                    contractId: 'eu_authority.testnet',
+                    methodNames: ["get_balance", "get_total_balance", "send_tokens"]
+                });
+            }
+        });
+
+        // Either sign in or call the addMessage change method on button click
+        document.getElementById('signin').addEventListener('click', () => {
+            if (wallet.isSignedIn()) {
+
+            } else {
+                wallet.requestSignIn({
+                    contractId: 'eu_authority.testnet',
+                    methodNames: ["get_balance", "get_total_balance", "send_tokens"]
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
